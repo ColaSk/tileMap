@@ -10,14 +10,23 @@
 '''
 
 # here put the import lib
-from osgeo import gdal, osr
+from osgeo import gdal, osr, gdalconst
 from tilemap.utils.shape import Point, Polygon
+
+gdal.AllRegister()
 
 class TifMap:
 
     def __init__(self, path):
         self.__path = path
         self.__dataset = gdal.Open(self.__path)
+
+        # self.__dataset.BuildOverviews(overviewlist=[2, 4 ,8, 16, 32, 64, 128, 256])
+
+    
+    @property
+    def rastercount(self):
+        return self.__dataset.RasterCount
     
     @property
     def ysize(self):
@@ -50,8 +59,13 @@ class TifMap:
     def geogcs(self):
         """获取地理坐标系"""        
         geosrs = self.projection.CloneGeogCS()
+        geosrs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER) # 纬经度 -> 经纬度
         return geosrs
     
+    @property
+    def dataset(self):
+        return self.__dataset
+
     def is_geographic(self):
         """地理坐标系"""
         return bool(self.projection.IsGeographic())
@@ -98,10 +112,10 @@ class TifMap:
         coords = ct.TransformPoint(point.x, point.y)
         # [纬度, 经度]
         # TODO: 经纬度数据顺序问题: https://www.osgeo.cn/gdal/tutorials/osr_api_tut.html
-        return Point(*coords[-2:-4:-1])
+        return Point(*coords)
     
     def get_region(self):
-        """获取
+        """获取区域(顺时针)
 
         Returns:
             [Polygon]: 区域模型
@@ -116,12 +130,50 @@ class TifMap:
         return Polygon(*geo_points)
     
     def get_geosrs_region(self):
-        """获取地图经纬度区域
+        """获取地图经纬度区域(顺时针)
 
         Returns:
             [Polygon]: 区域模型
         """        
-        geosrs_points = (self.geo2lonlat(p) for p in self.get_region().points)
+        geosrs_points = [self.geo2lonlat(p) for p in self.get_region().points]
 
         return Polygon(*geosrs_points)
+    
+    def reprojection_from_epsg(self, epsg: int, file: str):
+        """重投影"""
+        target = osr.SpatialReference()
+        target.SetProjCS('WGS 84 / Pseudo-Mercator') # 设置投影系统名称
+        target.SetWellKnownGeogCS('WGS84') # 设置地理坐标系统
+        target.ImportFromEPSG(epsg) # 定义投影坐标系
         
+        """重采样方法
+        GRA_NearestNeighbour 选取最邻近的像元
+        GRA_Bilinear         邻近4个像元加权平均
+        GRA_Cubic            邻近的16个像元平均
+        GRA_CubicSpline      16个像元的三次B样条
+        GRA_Lanczos          36个像元Lanczos窗口
+        GRA_Average          求均值
+        GRA_Mode             出现频率最多的像元值
+        """
+        webMercatorDs  = gdal.AutoCreateWarpedVRT(self.dataset, 
+                                                  None, 
+                                                  target.ExportToWkt(), 
+                                                  gdalconst.GRA_Bilinear)
+        dataset = gdal.GetDriverByName("GTiff").CreateCopy(
+                file, webMercatorDs, options=["TILED=YES", "COMPRESS={0}".format('LZW')]
+            )
+        return dataset
+    
+    # def geosrs_bounds(self):
+    #     """地理坐标系下bounds"""
+    #     return self.get_geosrs_region().bounds
+
+    # def geosrs_pixel_resolution(self):
+    #     """地理坐标系下像素分辨率"""
+    #     map_bounds = self.geosrs_bounds()
+    #     xr  = (map_bounds[2] - map_bounds[0])/self.xsize
+    #     yr  = (map_bounds[3] - map_bounds[1])/self.ysize
+
+    #     return xr, yr
+
+

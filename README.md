@@ -30,4 +30,13 @@ pip install gdal==3.0.4
   - GCJ02(火星坐标系)\BD09
 
 ### 投影坐标系
-- Pseudo-Mercator\UTM\BD09MC
+- Pseudo-Mercator(EPSG 3857)\UTM\BD09MC
+
+
+## 坐标系转化
+
+当前(WGS 84 基准)
+x, y -> 自身投影(UTM)
+自身投影 -> epsg3857(Pseudo-Mercator)
+
+-> 地理坐标系(WGS 84)
