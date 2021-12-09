@@ -14,8 +14,11 @@ import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+
 class Setting(object):
-    pass
+    SEMI_MAJOR = 6378137.0 # 长半轴
+    EE = 0.00669342162296594323  # 偏心率平方
 
 class TileNameFormat:
 

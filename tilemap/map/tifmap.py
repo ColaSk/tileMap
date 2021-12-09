@@ -10,8 +10,11 @@
 '''
 
 # here put the import lib
+import math
+from math import pi
 from osgeo import gdal, osr, gdalconst
 from tilemap.utils.shape import Point, Polygon
+from tilemap.conf.setting import Setting
 
 gdal.AllRegister()
 
@@ -23,7 +26,6 @@ class TifMap:
 
         # self.__dataset.BuildOverviews(overviewlist=[2, 4 ,8, 16, 32, 64, 128, 256])
 
-    
     @property
     def rastercount(self):
         return self.__dataset.RasterCount
@@ -164,16 +166,53 @@ class TifMap:
             )
         return dataset
     
-    # def geosrs_bounds(self):
-    #     """地理坐标系下bounds"""
-    #     return self.get_geosrs_region().bounds
 
-    # def geosrs_pixel_resolution(self):
-    #     """地理坐标系下像素分辨率"""
-    #     map_bounds = self.geosrs_bounds()
-    #     xr  = (map_bounds[2] - map_bounds[0])/self.xsize
-    #     yr  = (map_bounds[3] - map_bounds[1])/self.ysize
+def wgs84togcj02(lon, lat, semi_major=Setting.SEMI_MAJOR, ee=Setting.EE):
+    """wgs84 地理坐标转 火星坐标
+    # TODO:整理
+    """
+    def is_china(lon, lat):
+        """判断中国境内"""
+        return (lon > 73.66 and lon < 135.05 and lat > 3.86 and lat < 53.55)
 
-    #     return xr, yr
+    def transformlonlat(lon, lat):
 
+        ret_lng = 300.0 + lon + 2.0 * lat + 0.1 * lon * lon + 0.1 * lon * lat + 0.1 * math.sqrt(math.fabs(lon))
+        ret_lng += (20.0 * math.sin(6.0 * lon * pi) + 20.0 *  math.sin(2.0 * lon * pi)) * 2.0 / 3.0
+        ret_lng += (20.0 * math.sin(lon * pi) + 40.0 * math.sin(lon / 3.0 * pi)) * 2.0 / 3.0
+        ret_lng += (150.0 * math.sin(lon / 12.0 * pi) + 300.0 * math.sin(lon / 30.0 * pi)) * 2.0 / 3.0
 
+        ret_lat = -100.0 + 2.0 * lon + 3.0 * lat + 0.2 * lat * lat + 0.1 * lon * lat + 0.2 * math.sqrt(math.fabs(lon))
+        ret_lat += (20.0 * math.sin(6.0 * lon * pi) + 20.0 * math.sin(2.0 * lon * pi)) * 2.0 / 3.0
+        ret_lat += (20.0 * math.sin(lat * pi) + 40.0 * math.sin(lat / 3.0 * pi)) * 2.0 / 3.0
+        ret_lat += (160.0 * math.sin(lat / 12.0 * pi) + 320 * math.sin(lat * pi / 30.0)) * 2.0 / 3.0
+
+        return ret_lng, ret_lat
+
+    if not is_china(lon, lat):
+        return lon, lat
+    
+    dlng, dlat = transformlonlat(lon, lat)
+
+    radlat = lat / 180.0 * pi
+    magic = math.sin(radlat)
+    magic = 1 - ee * magic * magic
+    sqrtmagic = math.sqrt(magic)
+    dlat = (dlat * 180.0) / ((semi_major * (1 - ee)) / (magic * sqrtmagic) * pi)
+    dlng = (dlng * 180.0) / (semi_major / sqrtmagic * math.cos(radlat) * pi)
+    mglat = lat + dlat
+    mglng = lon + dlng
+
+    return mglng, mglat
+  
+def point_wgs84togcj02(point: Point, semi_major=Setting.SEMI_MAJOR, ee=Setting.EE):
+
+    lon, lat = wgs84togcj02(point.x, point.y, semi_major, ee)
+
+    return Point(lon, lat)
+
+def polygon_wgs84togcj02(polygon: Polygon, semi_major=Setting.SEMI_MAJOR, ee=Setting.EE):
+
+    points = [point_wgs84togcj02(p, semi_major, ee) for p in polygon.points]
+
+    return Polygon(*points)

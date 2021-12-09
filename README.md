@@ -40,3 +40,10 @@ x, y -> 自身投影(UTM)
 自身投影 -> epsg3857(Pseudo-Mercator)
 
 -> 地理坐标系(WGS 84)
+
+## EPSG
+
+```
+EPSG:4326	Geodetic coordinate system(地理坐标系)	WGS 84
+EPSG:2437	Projected coordinate system(投影坐标系)	Beijing 1954 / 3-degree Gauss-Kruger CM 120E
+```

@@ -10,11 +10,8 @@
 '''
 import math
 import logging
-from posixpath import join
-import shutil
-import numpy
 import os
-from osgeo import gdal, osr, gdalconst
+from osgeo import gdal
 from tilemap.map.tifmap import TifMap
 from tilemap.utils.shape import Point, Polygon, box
 from tilemap.utils.utils import resolution, pixel_num
@@ -25,15 +22,13 @@ gdal.SetConfigOption('HFA_USE_RRD', 'YES')
 
 logger = logging.getLogger(__name__)
 
-
-
 # here put the import lib
 class MapTilerService(object):
 
     def __init__(self, 
-                 map:TifMap, 
+                map:TifMap, 
                 map_path: str = './', 
-                named_type=TileNameFormat.xyz, 
+                named_type=TileNameFormat.zxy, 
                 minlevel: int = 0, 
                 maxlevel: int = 21):
 
@@ -156,44 +151,59 @@ class MapTilerService(object):
                 self.savepng(datas, path, img_xoff, img_yoff,buf_xsize, buf_ysize)
   
     def readdata(self, xoff, yoff, xsize, ysize, buf_xsize, buf_ysize):
-
+        """读取每个波段的数据"""
         datas = []
         for i in range(1, self.map.rastercount+1):
             data = self.map.dataset.GetRasterBand(i).ReadRaster(xoff, yoff, xsize, ysize, buf_xsize, buf_ysize)
-            # logger.debug(data)
             datas.append(data)
-        # datas = numpy.concatenate(datas)
-        
+ 
         return datas
     
     def savepng(self, datas, path, xoff, yoff, xsize, ysize):
+        """保存为png"""
+        
+        def callback(progress: float, b, data):
+            """CreateCopy 回调函数
+            progress: 进度
+            b: don't know
+            data: CreateCopy callback_data 参数
+            """
+            logger.debug(f"Create file: {data.get('path')} progress: {progress*100}% ...")
+        
 
-        memDriver = gdal.GetDriverByName("MEM")
-        msmDS = memDriver.Create("msmDS", 256, 256, self.map.rastercount)
+        mem_driver = gdal.GetDriverByName("MEM")
+        msmds = mem_driver.Create("msmDS", 256, 256, self.map.rastercount)
 
         for i in range(len(datas)):
-            msmDS.GetRasterBand(i+1).WriteRaster(xoff, yoff, xsize, ysize, datas[i])
+            msmds.GetRasterBand(i+1).WriteRaster(xoff, yoff, xsize, ysize, datas[i])
 
-        pngDriver = gdal.GetDriverByName("PNG")
-        pngDs = pngDriver.CreateCopy(path, msmDS)
-        return pngDs
+        png_driver = gdal.GetDriverByName("PNG")
+        pngds = png_driver.CreateCopy(path, msmds, True, callback=callback, 
+                                      callback_data={"path": path})
+
+        return pngds
 
     def run(self):
+        logger.info('cutting start ...'.center(100, '*'))
+        
         # 确保 Pseudo-Mercator 投影
         assert self.map.projection.GetAttrValue('PROJCS') == 'WGS 84 / Pseudo-Mercator'
 
         logger.debug(f'rastercount: {self.map.rastercount}')
-        polygon: Polygon = self.map.get_geosrs_region()
+
+        polygon: Polygon = self.map.get_geosrs_region()   
         map_bounds = polygon.bounds
         
         logger.debug(f"polygon: {polygon}")
         
-        x_pixel_resolution  = resolution(map_bounds[0], map_bounds[2], self.map.xsize)
-        y_pixel_resolution  = resolution(map_bounds[1], map_bounds[3], self.map.ysize)
+        lon_resolution  = resolution(map_bounds[0], map_bounds[2], self.map.xsize)
+        lat_resolution  = resolution(map_bounds[1], map_bounds[3], self.map.ysize)
 
-        logger.debug(f'经纬度分辨率: {(x_pixel_resolution, y_pixel_resolution)}')
+        logger.debug(f'经纬度分辨率: {(lon_resolution, lat_resolution)}')
 
         for z in range(self.minlevel, self.maxlevel+1):
+
+            logger.info(f'cutting level: {z} ...'.center(100, '*'))
 
             # Tile No. in upper right corner
             ur_tile_n = self.lonlat2xytile(polygon.indexpoint(1), z)
@@ -203,7 +213,9 @@ class MapTilerService(object):
 
             tile_bounds = (ll_tile_n[0], ur_tile_n[1], ur_tile_n[0], ll_tile_n[1])
 
-            self.tile_cut(z, tile_bounds, map_bounds, x_pixel_resolution, y_pixel_resolution)
+            self.tile_cut(z, tile_bounds, map_bounds, lon_resolution, lat_resolution)
+        
+        logger.info('cutting end ...'.center(100, '*'))
 
     def test(self):
         self.run()
