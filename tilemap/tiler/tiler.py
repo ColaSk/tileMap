@@ -15,7 +15,7 @@ from osgeo import gdal
 from tilemap.map.tifmap import TifMap, polygon_wgs84togcj02
 from tilemap.utils.shape import Point, Polygon, box
 from tilemap.utils.utils import resolution, pixel_num
-from tilemap.conf.setting import TileNameFormat
+from tilemap.conf.setting import TileNameFormat, TileServiceDefine
 
 # 设定Imagine风格的pyramids
 gdal.SetConfigOption('HFA_USE_RRD', 'YES')
@@ -27,7 +27,7 @@ class MapTilerService(object):
 
     def __init__(self, 
                 map:TifMap, 
-                map_path: str = './', 
+                map_path: str = './map', 
                 named_type=TileNameFormat.zxy, 
                 minlevel: int = 0, 
                 maxlevel: int = 21):
@@ -182,6 +182,18 @@ class MapTilerService(object):
                                       callback_data={"path": path})
 
         return pngds
+    
+    def map_bounds(self):
+        polygon: Polygon = self.map.get_geosrs_region()
+        return polygon.bounds
+    
+    def tile_bounds(self, level):
+        map_bounds = self.map_bounds()
+        lu_xytile = self.lonlat2xytile(Point(map_bounds[0], map_bounds[3]), level)
+        rl_xytile = self.lonlat2xytile(Point(map_bounds[2], map_bounds[1]), level)
+        tile_bounds = (lu_xytile[0], lu_xytile[1], rl_xytile[0], rl_xytile[1])
+        return tile_bounds
+
 
     def run(self):
         logger.info('cutting start ...'.center(100, '*'))
@@ -191,11 +203,8 @@ class MapTilerService(object):
 
         logger.debug(f'rastercount: {self.map.rastercount}')
 
-        polygon: Polygon = self.map.get_geosrs_region()
-
-        polygon = polygon_wgs84togcj02(polygon)
-
-        map_bounds = polygon.bounds
+        map_bounds = self.map_bounds()
+        polygon = box(*map_bounds)
         
         logger.debug(f"polygon: {polygon}")
         
@@ -207,18 +216,47 @@ class MapTilerService(object):
         for z in range(self.minlevel, self.maxlevel+1):
 
             logger.info(f'cutting level: {z} ...'.center(100, '*'))
-
-            # Tile No. in upper right corner
-            ur_tile_n = self.lonlat2xytile(polygon.indexpoint(1), z)
-
-            # Tile No. at lower left corner
-            ll_tile_n = self.lonlat2xytile(polygon.indexpoint(-1), z)
-
-            tile_bounds = (ll_tile_n[0], ur_tile_n[1], ur_tile_n[0], ll_tile_n[1])
-
+            tile_bounds = self.tile_bounds(z)
             self.tile_cut(z, tile_bounds, map_bounds, lon_resolution, lat_resolution)
+            logger.info(f'cutting level: {z} end'.center(100, '*'))
         
         logger.info('cutting end ...'.center(100, '*'))
 
     def test(self):
         self.run()
+
+
+"""谷歌地图切片服务
+
+任意坐标系tif -> WGS84(Pseudo-Mercator) -> 谷歌地图瓦片
+
+"""
+class GoogleMapTilerService(MapTilerService):
+    pass
+
+
+"""高德地图切片服务
+
+任意坐标系tif -> WGS84(Pseudo-Mercator) -> 高德地图瓦片
+
+"""
+class AMapTilerService(MapTilerService):
+
+    def map_bounds(self):
+
+        polygon: Polygon = self.map.get_geosrs_region()
+        polygon: Polygon = polygon_wgs84togcj02(polygon) # wgs84 转 gcj02
+
+        return polygon.bounds
+
+
+
+
+
+def get_service_cls(type: int):
+    if type == TileServiceDefine.amap:
+        return AMapTilerService
+    elif type == TileServiceDefine.google:
+        return GoogleMapTilerService
+    else:
+        raise Exception(f"This slice service type cannot exist: {type}")

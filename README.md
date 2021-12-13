@@ -47,3 +47,10 @@ x, y -> 自身投影(UTM)
 EPSG:4326	Geodetic coordinate system(地理坐标系)	WGS 84
 EPSG:2437	Projected coordinate system(投影坐标系)	Beijing 1954 / 3-degree Gauss-Kruger CM 120E
 ```
+
+## 高德地图
+- 地理坐标系: GCJ02 准确的说GCJ02不属于坐标系，仅仅是坐标加密算法
+- 投影坐标系：Pseudo-Mercator
+  
+### 问题
+- 高德地图加密后如何进行的投影

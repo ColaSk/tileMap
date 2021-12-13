@@ -11,10 +11,13 @@
 
 # here put the import lib
 import math
+import logging
 from math import pi
 from osgeo import gdal, osr, gdalconst
 from tilemap.utils.shape import Point, Polygon
 from tilemap.conf.setting import Setting
+
+logger = logging.getLogger(__name__)
 
 gdal.AllRegister()
 
@@ -67,6 +70,10 @@ class TifMap:
     @property
     def dataset(self):
         return self.__dataset
+    
+    @dataset.setter
+    def dataset(self, value):
+        self.__dataset = value
 
     def is_geographic(self):
         """地理坐标系"""
@@ -143,6 +150,15 @@ class TifMap:
     
     def reprojection_from_epsg(self, epsg: int, file: str):
         """重投影"""
+        
+        def callback(progress: float, b, data):
+            """CreateCopy 回调函数
+            progress: 进度
+            b: don't know
+            data: CreateCopy callback_data 参数
+            """
+            logger.debug(f"Create file: {data.get('path')} progress: {progress*100}% ...")
+
         target = osr.SpatialReference()
         target.SetProjCS('WGS 84 / Pseudo-Mercator') # 设置投影系统名称
         target.SetWellKnownGeogCS('WGS84') # 设置地理坐标系统
@@ -162,7 +178,8 @@ class TifMap:
                                                   target.ExportToWkt(), 
                                                   gdalconst.GRA_Bilinear)
         dataset = gdal.GetDriverByName("GTiff").CreateCopy(
-                file, webMercatorDs, options=["TILED=YES", "COMPRESS={0}".format('LZW')]
+                file, webMercatorDs, options=["TILED=YES", "COMPRESS={0}".format('LZW')],
+                callback=callback, callback_data={"path": file}
             )
         return dataset
     

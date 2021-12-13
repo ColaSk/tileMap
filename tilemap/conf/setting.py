@@ -20,6 +20,12 @@ class Setting(object):
     SEMI_MAJOR = 6378137.0 # 长半轴
     EE = 0.00669342162296594323  # 偏心率平方
 
+
+class TileServiceDefine:
+
+    amap = 1
+    google = 2
+
 class TileNameFormat:
 
     xyz = 1
