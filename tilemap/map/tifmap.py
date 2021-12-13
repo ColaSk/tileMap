@@ -177,6 +177,9 @@ def wgs84togcj02(lon, lat, semi_major=Setting.SEMI_MAJOR, ee=Setting.EE):
 
     def transformlonlat(lon, lat):
 
+        lon = lon-105.0
+        lat = lat-35.0
+
         ret_lng = 300.0 + lon + 2.0 * lat + 0.1 * lon * lon + 0.1 * lon * lat + 0.1 * math.sqrt(math.fabs(lon))
         ret_lng += (20.0 * math.sin(6.0 * lon * pi) + 20.0 *  math.sin(2.0 * lon * pi)) * 2.0 / 3.0
         ret_lng += (20.0 * math.sin(lon * pi) + 40.0 * math.sin(lon / 3.0 * pi)) * 2.0 / 3.0

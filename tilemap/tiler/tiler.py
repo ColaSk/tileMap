@@ -12,7 +12,7 @@ import math
 import logging
 import os
 from osgeo import gdal
-from tilemap.map.tifmap import TifMap
+from tilemap.map.tifmap import TifMap, polygon_wgs84togcj02
 from tilemap.utils.shape import Point, Polygon, box
 from tilemap.utils.utils import resolution, pixel_num
 from tilemap.conf.setting import TileNameFormat
@@ -191,7 +191,10 @@ class MapTilerService(object):
 
         logger.debug(f'rastercount: {self.map.rastercount}')
 
-        polygon: Polygon = self.map.get_geosrs_region()   
+        polygon: Polygon = self.map.get_geosrs_region()
+
+        polygon = polygon_wgs84togcj02(polygon)
+
         map_bounds = polygon.bounds
         
         logger.debug(f"polygon: {polygon}")
