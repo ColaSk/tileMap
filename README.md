@@ -3,8 +3,8 @@
 ## 安装库
 ```
 sudo apt install libpq-dev
-sudo apt install gdal-bin=3.0.4+dfsg-1build3
-sudo apt install libgdal-dev=3.0.4+dfsg-1build3
+sudo apt install gdal-bin=3.0.4+dfsg-1build3   # gdal 包
+sudo apt install libgdal-dev=3.0.4+dfsg-1build3 # 开发包
 
 gdalinfo --version
 

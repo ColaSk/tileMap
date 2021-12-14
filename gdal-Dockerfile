@@ -1,0 +1,21 @@
+FROM osgeo/gdal:ubuntu-small-3.0.4
+
+ENV PYTHONUNBUFFERED=1 PYTHONIOENCODING=utf-8 TZ=Asia/Shanghai
+
+VOLUME ["/docker_codes"]
+WORKDIR /docker_codes
+
+COPY ./mirrors /mirrors
+
+RUN apt update && apt upgrade -y
+
+# 固定python版本
+RUN apt-get install python3.8 -y && \
+    rm /usr/bin/python3 && \
+    ln -s /usr/bin/python3.8 /usr/bin/python3
+
+RUN apt-get install python3-pip -y && \
+    pip3 install --upgrade pip
+
+RUN  apt-get install proj-bin -y 
+RUN pip3 install -r /mirrors/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --no-cache-dir
