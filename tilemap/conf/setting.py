@@ -11,10 +11,14 @@
 
 # here put the import lib
 import os
+import enlighten
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 LOG_DIR = os.path.join(BASE_DIR, "logs")
+
+# 进度条
+progress_manager = enlighten.get_manager()
 
 class Setting(object):
     SEMI_MAJOR = 6378137.0 # 长半轴

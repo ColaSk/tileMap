@@ -15,7 +15,7 @@ import logging
 import logging.config
 import os
 
-from tilemap.map.tifmap import TifMap
+from tilemap.map.tifmap import TifMap, arbitrary_map_to_wgs84_pm
 from tilemap.tiler.tiler import get_service_cls
 from tilemap.conf.setting import TileServiceDefine
 from tilemap.conf.log import get_log_config
@@ -86,6 +86,11 @@ def execute():
     map = TifMap(args.get('input'))
     # TODO: 判断地理坐标系与投影坐标系
 
+    map = arbitrary_map_to_wgs84_pm(map)
+
+    logger.info("Start building pyramids ")
+    map.build_overviews()
+    
     service_cls(
         map, 
         map_path=args.get('output'), 

@@ -10,12 +10,14 @@
 '''
 
 # here put the import lib
+import os
 import math
 import logging
 from math import pi
 from osgeo import gdal, osr, gdalconst
 from tilemap.utils.shape import Point, Polygon
 from tilemap.conf.setting import Setting
+from tilemap.conf import EPSG
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +27,16 @@ class TifMap:
 
     def __init__(self, path):
         self.__path = path
-        self.__dataset = gdal.Open(self.__path)
+        self.__dataset = gdal.Open(self.__path, gdal.GA_ReadOnly)
 
-        # self.__dataset.BuildOverviews(overviewlist=[2, 4 ,8, 16, 32, 64, 128, 256])
+    def build_overviews(self):
+        """设置金字塔"""
+        if not os.path.exists(self.__path + '.ovr'):
+            self.__dataset.BuildOverviews(overviewlist=[2, 4 ,8, 16, 32, 64, 128, 256])
+    
+    @property
+    def path(self):
+        return self.__path
 
     @property
     def rastercount(self):
@@ -183,6 +192,32 @@ class TifMap:
             )
         return dataset
     
+
+def arbitrary_map_to_wgs84_pm(map: TifMap):
+    """任意类型tifmap 转 wgs84坐标系 Pseudo-Mercator投影"""
+
+    logger.info('Check the map coordinate system')
+
+    projection = map.projection
+    geogcs = projection.GetAuthorityCode('GEOGCS')
+    projcs = projection.GetAuthorityCode('PROJCS')
+
+    logger.info(f'The map coordinate system is: geogcs: {geogcs}, projcs: {projcs}')
+    
+    if (geogcs != str(EPSG.WGS84) or projcs != str(EPSG.Pseudo_Mercator)):
+        
+        path_list = map.path.rsplit('.', 1)
+        path_list.insert(-1, '84pm.')
+        path = ''.join(path_list)
+
+        logger.info('The map coordinate system does not meet the requirements of cut-off map, '
+                    f're projection is geogcs: {EPSG.WGS84}, projcs: {EPSG.Pseudo_Mercator},'
+                    f'and the path is {path}')
+
+        map.reprojection_from_epsg(EPSG.Pseudo_Mercator, path)
+        map = TifMap(path)
+    
+    return map
 
 def wgs84togcj02(lon, lat, semi_major=Setting.SEMI_MAJOR, ee=Setting.EE):
     """wgs84 地理坐标转 火星坐标
