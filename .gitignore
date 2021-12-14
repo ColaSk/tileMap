@@ -2,3 +2,7 @@
 .idea
 __pycache__
 logs/
+*.log
+build/
+dist/
+tile_map.egg-info/
