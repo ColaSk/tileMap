@@ -1,16 +1,22 @@
+import os
 from setuptools import  setup
 from setuptools import find_packages
+
+def install_requires(path='./mirrors/requirements.txt'):
+
+    if not os.path.isabs(path):
+        path = os.path.abspath(path)
+    
+    with open(path, 'r') as fi:
+        data = fi.read()
+        requires = [require for require in data.split("\n") if require]
+        return requires
 
 VERSION = '1.0.0'
 PACKAGES = find_packages()
 NAME = 'tile-map'
 
-INSTALL_REQUIRES = [
-    "setuptools<58.0.0",
-    "gdal==3.0.4",
-    "Shapely==1.7.1",
-    "enlighten==1.10.2"
-]
+INSTALL_REQUIRES = install_requires()
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
