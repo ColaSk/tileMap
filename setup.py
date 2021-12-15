@@ -6,8 +6,8 @@ PACKAGES = find_packages()
 NAME = 'tile-map'
 
 INSTALL_REQUIRES = [
+    "setuptools<58.0.0",
     "gdal==3.0.4",
-    "pyproj==3.3.0",
     "Shapely==1.7.1",
     "enlighten==1.10.2"
 ]
