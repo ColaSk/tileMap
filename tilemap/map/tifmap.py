@@ -139,9 +139,9 @@ class TifMap:
             [Polygon]: 区域模型
         """        
         points = ((0, 0), 
-                  (self.xsize, 0), 
-                  (self.xsize, self.ysize), 
-                  (0, self.ysize))
+                  (self.xsize-1, 0), 
+                  (self.xsize-1, self.ysize-1), 
+                  (0, self.ysize-1))
 
         geo_points = (self.xy2geo(*p) for p in points)
         
